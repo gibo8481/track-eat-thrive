@@ -266,7 +266,32 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      daily_nutrient_totals: {
+        Row: {
+          date: string | null
+          total_calories: number | null
+          total_carbs: number | null
+          total_fat: number | null
+          total_fiber: number | null
+          total_protein: number | null
+          total_vitamin_a: number | null
+          total_vitamin_b1: number | null
+          total_vitamin_b12: number | null
+          total_vitamin_b6: number | null
+          total_vitamin_d: number | null
+          total_vitamin_k: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never

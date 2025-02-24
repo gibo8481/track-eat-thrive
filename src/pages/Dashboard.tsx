@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FoodLogForm } from "@/components/food/FoodLogForm";
+import { NutrientSummary } from "@/components/food/NutrientSummary";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="grid gap-4">
+      <div className="grid gap-8">
         <Card>
           <CardHeader>
             <CardTitle>Log Food</CardTitle>
@@ -52,43 +53,14 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>Today's Nutrition</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* We'll implement the nutrition summary next */}
-              <p className="text-sm text-muted-foreground">
-                Track your daily nutrition intake
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Vitamin Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* We'll implement the vitamin tracking next */}
-              <p className="text-sm text-muted-foreground">
-                Monitor your vitamin levels
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Meal Recommendations</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* We'll implement meal recommendations next */}
-              <p className="text-sm text-muted-foreground">
-                Get personalized meal suggestions
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Today's Nutrition</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <NutrientSummary />
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );
