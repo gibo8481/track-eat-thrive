@@ -6,9 +6,11 @@ import { supabase } from "@/lib/supabase";
 import { FoodSearch } from "./FoodSearch";
 import { ServingInput } from "./ServingInput";
 import { MealTypeSelect } from "./MealTypeSelect";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const FoodLogForm = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [foodName, setFoodName] = useState("");
   const [servingSize, setServingSize] = useState("");
@@ -80,6 +82,11 @@ export const FoodLogForm = () => {
         });
 
       if (logError) throw logError;
+
+      // Invalidate queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ["foodLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["nutrientTotals"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
 
       toast({
         title: "Success",

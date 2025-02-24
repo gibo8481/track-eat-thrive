@@ -19,6 +19,11 @@ export const FoodRecommendations = () => {
       
       if (error && error.code !== 'PGRST116') throw error;
       return data || {
+        total_calories: 0,
+        total_protein: 0,
+        total_carbs: 0,
+        total_fat: 0,
+        total_fiber: 0,
         total_vitamin_a: 0,
         total_vitamin_d: 0,
         total_vitamin_k: 0,
@@ -83,9 +88,9 @@ export const FoodRecommendations = () => {
   if (!recommendations?.recommendations?.length) {
     return (
       <Alert>
-        <AlertTitle>Great job!</AlertTitle>
+        <AlertTitle>No recommendations available</AlertTitle>
         <AlertDescription>
-          You're meeting all your nutritional requirements for today.
+          Add some food to your daily log to get personalized recommendations based on your nutrient needs.
         </AlertDescription>
       </Alert>
     );
