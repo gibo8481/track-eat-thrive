@@ -33,57 +33,46 @@ serve(async (req) => {
       vitamin_b12_mcg: 2.4,
     };
 
-    // Mapping of nutrient names to Spoonacular parameter names
-    const spoonacularNutrientMap = {
-      'Vitamin A': 'vitaminA',
-      'Vitamin D': 'vitaminD',
-      'Vitamin K': 'vitaminK',
-      'Vitamin B1': 'vitaminB1',
-      'Vitamin B6': 'vitaminB6',
-      'Vitamin B12': 'vitaminB12'
-    };
-
-    // Check each nutrient and find food recommendations if deficient
+    // Spoonacular uses different units, so we need to convert
     const nutrientChecks = [
       {
         name: 'Vitamin A',
         current: nutrients.total_vitamin_a || 0,
         recommended: dailyRecommended.vitamin_a_mcg,
-        spoonacularName: 'vitaminA',
+        nutrientId: 320, // Vitamin A, RAE ID in Spoonacular
       },
       {
         name: 'Vitamin D',
         current: nutrients.total_vitamin_d || 0,
         recommended: dailyRecommended.vitamin_d_mcg,
-        spoonacularName: 'vitaminD',
+        nutrientId: 324, // Vitamin D ID in Spoonacular
       },
       {
         name: 'Vitamin K',
         current: nutrients.total_vitamin_k || 0,
         recommended: dailyRecommended.vitamin_k_mcg,
-        spoonacularName: 'vitaminK',
+        nutrientId: 430, // Vitamin K ID in Spoonacular
       },
       {
         name: 'Vitamin B1',
         current: nutrients.total_vitamin_b1 || 0,
         recommended: dailyRecommended.vitamin_b1_mg,
-        spoonacularName: 'vitaminB1',
+        nutrientId: 404, // Thiamin (B1) ID in Spoonacular
       },
       {
         name: 'Vitamin B6',
         current: nutrients.total_vitamin_b6 || 0,
         recommended: dailyRecommended.vitamin_b6_mg,
-        spoonacularName: 'vitaminB6',
+        nutrientId: 415, // Vitamin B6 ID in Spoonacular
       },
       {
         name: 'Vitamin B12',
         current: nutrients.total_vitamin_b12 || 0,
         recommended: dailyRecommended.vitamin_b12_mcg,
-        spoonacularName: 'vitaminB12',
+        nutrientId: 418, // Vitamin B12 ID in Spoonacular
       },
     ];
 
-    // Check each nutrient and get recommendations if needed
     for (const check of nutrientChecks) {
       const deficiency = check.recommended - check.current;
       console.log(`Checking ${check.name}: Current=${check.current}, Recommended=${check.recommended}, Deficiency=${deficiency}`);
@@ -92,11 +81,11 @@ serve(async (req) => {
         console.log(`Finding recommendations for ${check.name} (deficiency: ${deficiency})`);
         
         try {
-          // First get recipes rich in this nutrient
-          const searchUrl = `https://api.spoonacular.com/recipes/complexSearch?apiKey=${SPOONACULAR_API_KEY}&number=3&addRecipeNutrition=true&sort=max${check.spoonacularName}&sortDirection=desc`;
-          console.log(`Fetching recipes from: ${searchUrl}`);
+          // Get recipes high in this nutrient using the nutrients endpoint
+          const recipesUrl = `https://api.spoonacular.com/recipes/findByNutrients?apiKey=${SPOONACULAR_API_KEY}&minAmount=20&number=3&nutrients=${check.name.toLowerCase().replace(' ', '')}`;
+          console.log(`Fetching recipes from: ${recipesUrl}`);
           
-          const recipesResponse = await fetch(searchUrl);
+          const recipesResponse = await fetch(recipesUrl);
           
           if (!recipesResponse.ok) {
             const errorText = await recipesResponse.text();
@@ -104,11 +93,23 @@ serve(async (req) => {
             throw new Error(`Spoonacular API error: ${recipesResponse.statusText}`);
           }
 
-          const recipesData = await recipesResponse.json();
-          console.log(`Found ${recipesData.results.length} recipes for ${check.name}`);
+          const recipes = await recipesResponse.json();
+          console.log(`Found ${recipes.length} recipes for ${check.name}`);
 
-          // Get nutrient-rich foods
-          const foodsUrl = `https://api.spoonacular.com/food/ingredients/search?query=${check.name}&number=5&apiKey=${SPOONACULAR_API_KEY}`;
+          // Get recipe details including instructions and nutrition
+          const detailedRecipes = await Promise.all(
+            recipes.map(async (recipe: any) => {
+              const detailUrl = `https://api.spoonacular.com/recipes/${recipe.id}/information?apiKey=${SPOONACULAR_API_KEY}`;
+              const response = await fetch(detailUrl);
+              if (!response.ok) {
+                throw new Error(`Failed to get recipe details: ${response.statusText}`);
+              }
+              return response.json();
+            })
+          );
+
+          // Get foods high in this nutrient
+          const foodsUrl = `https://api.spoonacular.com/food/ingredients/search?apiKey=${SPOONACULAR_API_KEY}&query=high+in+${check.name.toLowerCase().replace(' ', '+')}&number=5&metaInformation=true`;
           console.log(`Fetching foods from: ${foodsUrl}`);
           
           const foodsResponse = await fetch(foodsUrl);
@@ -121,25 +122,27 @@ serve(async (req) => {
 
           const foodsData = await foodsResponse.json();
 
-          recommendations.push({
-            nutrient: check.name,
-            current: check.current,
-            recommended: check.recommended,
-            deficiency: deficiency,
-            foods: foodsData.results.map((food: any) => ({
-              name: food.name,
-            })),
-            recipes: recipesData.results.map((recipe: any) => ({
-              id: recipe.id,
-              name: recipe.title,
-              description: recipe.summary,
-              prep_time_minutes: recipe.preparationMinutes || 15,
-              cooking_time_minutes: recipe.cookingMinutes || 30,
-              rating: recipe.spoonacularScore / 20,
-              image: recipe.image,
-              sourceUrl: recipe.sourceUrl,
-            })),
-          });
+          if (detailedRecipes.length > 0 || foodsData.results.length > 0) {
+            recommendations.push({
+              nutrient: check.name,
+              current: check.current,
+              recommended: check.recommended,
+              deficiency: deficiency,
+              foods: foodsData.results.map((food: any) => ({
+                name: food.name,
+              })),
+              recipes: detailedRecipes.map((recipe: any) => ({
+                id: recipe.id,
+                name: recipe.title,
+                description: recipe.summary,
+                prep_time_minutes: recipe.preparationMinutes || 15,
+                cooking_time_minutes: recipe.cookingMinutes || 30,
+                rating: recipe.spoonacularScore / 20,
+                image: recipe.image,
+                sourceUrl: recipe.sourceUrl,
+              })),
+            });
+          }
         } catch (error) {
           console.error(`Error fetching ${check.name} recommendations:`, error);
         }
