@@ -2,18 +2,10 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snack"];
+import { FoodSearch } from "./FoodSearch";
+import { ServingInput } from "./ServingInput";
+import { MealTypeSelect } from "./MealTypeSelect";
 
 export const FoodLogForm = () => {
   const { toast } = useToast();
@@ -22,28 +14,6 @@ export const FoodLogForm = () => {
   const [servingSize, setServingSize] = useState("");
   const [servings, setServings] = useState("1");
   const [mealType, setMealType] = useState("Breakfast");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-
-  const searchFood = async (query: string) => {
-    if (!query) return;
-    
-    try {
-      const response = await fetch(
-        `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(
-          query
-        )}&pageSize=5&api_key=QDt4XRlkOQTS2fzVdXuT5m651xPwOgj4ew8WC3Xo`
-      );
-      const data = await response.json();
-      setSearchResults(data.foods || []);
-    } catch (error) {
-      console.error("Failed to search foods:", error);
-      toast({
-        title: "Error",
-        description: "Failed to search for food items",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +91,6 @@ export const FoodLogForm = () => {
       setServingSize("");
       setServings("1");
       setMealType("Breakfast");
-      setSearchResults([]);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -136,75 +105,23 @@ export const FoodLogForm = () => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="foodName">Food Name</Label>
-          <Input
-            id="foodName"
-            value={foodName}
-            onChange={(e) => {
-              setFoodName(e.target.value);
-              searchFood(e.target.value);
-            }}
-            required
-          />
-          {searchResults.length > 0 && (
-            <div className="mt-2 p-2 bg-background border rounded-md shadow-sm">
-              {searchResults.map((food) => (
-                <button
-                  key={food.fdcId}
-                  type="button"
-                  className="w-full text-left p-2 hover:bg-accent rounded-sm text-sm"
-                  onClick={() => {
-                    setFoodName(food.description);
-                    setSearchResults([]);
-                  }}
-                >
-                  {food.description}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="servingSize">Serving Size</Label>
-          <Input
-            id="servingSize"
-            value={servingSize}
-            onChange={(e) => setServingSize(e.target.value)}
-            required
-            placeholder="e.g., 100g"
-          />
-        </div>
+        <FoodSearch 
+          foodName={foodName} 
+          onFoodNameChange={setFoodName} 
+        />
+        <ServingInput
+          servingSize={servingSize}
+          servings={servings}
+          onServingSizeChange={setServingSize}
+          onServingsChange={setServings}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="servings">Number of Servings</Label>
-          <Input
-            id="servings"
-            type="number"
-            min="0.25"
-            step="0.25"
-            value={servings}
-            onChange={(e) => setServings(e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="mealType">Meal Type</Label>
-          <Select value={mealType} onValueChange={setMealType}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select meal type" />
-            </SelectTrigger>
-            <SelectContent>
-              {MEAL_TYPES.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <MealTypeSelect 
+          mealType={mealType} 
+          onMealTypeChange={setMealType} 
+        />
       </div>
 
       <Button type="submit" className="w-full" disabled={loading}>
