@@ -1,5 +1,6 @@
 
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
@@ -73,13 +74,16 @@ export const RecipeSelector = ({ onSelect, trigger }: RecipeSelectorProps) => {
     },
   });
 
-  if (error) {
-    toast({
-      title: "Error loading recipes",
-      description: "Failed to load recipes. Please try again.",
-      variant: "destructive",
-    });
-  }
+  // Handle error with useEffect to avoid infinite renders
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error loading recipes",
+        description: "Failed to load recipes. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
 
   return (
     <Dialog>
