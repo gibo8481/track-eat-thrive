@@ -1,12 +1,12 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+const SPOONACULAR_API_KEY = Deno.env.get('SPOONACULAR_API_KEY');
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const SPOONACULAR_API_KEY = Deno.env.get('SPOONACULAR_API_KEY');
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -33,43 +33,43 @@ serve(async (req) => {
       vitamin_b12_mcg: 2.4,
     };
 
-    // Spoonacular uses different units, so we need to convert
+    // Check for deficiencies and get recommendations
     const nutrientChecks = [
       {
         name: 'Vitamin A',
         current: nutrients.total_vitamin_a || 0,
         recommended: dailyRecommended.vitamin_a_mcg,
-        nutrientId: 320, // Vitamin A, RAE ID in Spoonacular
+        searchTerm: 'vitamin+a+rich+foods',
       },
       {
         name: 'Vitamin D',
         current: nutrients.total_vitamin_d || 0,
         recommended: dailyRecommended.vitamin_d_mcg,
-        nutrientId: 324, // Vitamin D ID in Spoonacular
+        searchTerm: 'vitamin+d+rich+foods',
       },
       {
         name: 'Vitamin K',
         current: nutrients.total_vitamin_k || 0,
         recommended: dailyRecommended.vitamin_k_mcg,
-        nutrientId: 430, // Vitamin K ID in Spoonacular
+        searchTerm: 'vitamin+k+rich+foods',
       },
       {
         name: 'Vitamin B1',
         current: nutrients.total_vitamin_b1 || 0,
         recommended: dailyRecommended.vitamin_b1_mg,
-        nutrientId: 404, // Thiamin (B1) ID in Spoonacular
+        searchTerm: 'thiamin+rich+foods',
       },
       {
         name: 'Vitamin B6',
         current: nutrients.total_vitamin_b6 || 0,
         recommended: dailyRecommended.vitamin_b6_mg,
-        nutrientId: 415, // Vitamin B6 ID in Spoonacular
+        searchTerm: 'vitamin+b6+rich+foods',
       },
       {
         name: 'Vitamin B12',
         current: nutrients.total_vitamin_b12 || 0,
         recommended: dailyRecommended.vitamin_b12_mcg,
-        nutrientId: 418, // Vitamin B12 ID in Spoonacular
+        searchTerm: 'vitamin+b12+rich+foods',
       },
     ];
 
@@ -81,8 +81,8 @@ serve(async (req) => {
         console.log(`Finding recommendations for ${check.name} (deficiency: ${deficiency})`);
         
         try {
-          // Get recipes high in this nutrient using the nutrients endpoint
-          const recipesUrl = `https://api.spoonacular.com/recipes/findByNutrients?apiKey=${SPOONACULAR_API_KEY}&minAmount=20&number=3&nutrients=${check.name.toLowerCase().replace(' ', '')}`;
+          // Get recipes high in this nutrient
+          const recipesUrl = `https://api.spoonacular.com/recipes/complexSearch?apiKey=${SPOONACULAR_API_KEY}&query=${check.searchTerm}&number=3&addRecipeNutrition=true&sort=meta-score&sortDirection=desc`;
           console.log(`Fetching recipes from: ${recipesUrl}`);
           
           const recipesResponse = await fetch(recipesUrl);
@@ -93,23 +93,11 @@ serve(async (req) => {
             throw new Error(`Spoonacular API error: ${recipesResponse.statusText}`);
           }
 
-          const recipes = await recipesResponse.json();
-          console.log(`Found ${recipes.length} recipes for ${check.name}`);
+          const recipesData = await recipesResponse.json();
+          console.log(`Found ${recipesData.results.length} recipes for ${check.name}`);
 
-          // Get recipe details including instructions and nutrition
-          const detailedRecipes = await Promise.all(
-            recipes.map(async (recipe: any) => {
-              const detailUrl = `https://api.spoonacular.com/recipes/${recipe.id}/information?apiKey=${SPOONACULAR_API_KEY}`;
-              const response = await fetch(detailUrl);
-              if (!response.ok) {
-                throw new Error(`Failed to get recipe details: ${response.statusText}`);
-              }
-              return response.json();
-            })
-          );
-
-          // Get foods high in this nutrient
-          const foodsUrl = `https://api.spoonacular.com/food/ingredients/search?apiKey=${SPOONACULAR_API_KEY}&query=high+in+${check.name.toLowerCase().replace(' ', '+')}&number=5&metaInformation=true`;
+          // Get food ingredients high in this nutrient
+          const foodsUrl = `https://api.spoonacular.com/food/ingredients/search?apiKey=${SPOONACULAR_API_KEY}&query=${check.searchTerm}&number=5&metaInformation=true`;
           console.log(`Fetching foods from: ${foodsUrl}`);
           
           const foodsResponse = await fetch(foodsUrl);
@@ -122,7 +110,7 @@ serve(async (req) => {
 
           const foodsData = await foodsResponse.json();
 
-          if (detailedRecipes.length > 0 || foodsData.results.length > 0) {
+          if (recipesData.results.length > 0 || foodsData.results.length > 0) {
             recommendations.push({
               nutrient: check.name,
               current: check.current,
@@ -131,7 +119,7 @@ serve(async (req) => {
               foods: foodsData.results.map((food: any) => ({
                 name: food.name,
               })),
-              recipes: detailedRecipes.map((recipe: any) => ({
+              recipes: recipesData.results.map((recipe: any) => ({
                 id: recipe.id,
                 name: recipe.title,
                 description: recipe.summary,
