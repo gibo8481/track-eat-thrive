@@ -31,7 +31,7 @@ export const FoodLogForm = () => {
       const response = await fetch(
         `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(
           query
-        )}&pageSize=5&api_key=DEMO_KEY`
+        )}&pageSize=5&api_key=QDt4XRlkOQTS2fzVdXuT5m651xPwOgj4ew8WC3Xo`
       );
       const data = await response.json();
       setSearchResults(data.foods || []);
@@ -54,7 +54,7 @@ export const FoodLogForm = () => {
       const response = await fetch(
         `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(
           foodName
-        )}&pageSize=1&api_key=DEMO_KEY`
+        )}&pageSize=1&api_key=QDt4XRlkOQTS2fzVdXuT5m651xPwOgj4ew8WC3Xo`
       );
       const data = await response.json();
       
