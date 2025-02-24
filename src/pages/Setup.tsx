@@ -115,7 +115,7 @@ const Setup = () => {
         description: "Your profile has been saved.",
       });
       
-      navigate("/dashboard");
+      navigate("/dashboard"); // Updated this line to redirect to dashboard
     } catch (error: any) {
       toast({
         title: "Error",
