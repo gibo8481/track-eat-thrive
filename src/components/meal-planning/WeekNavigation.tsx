@@ -37,7 +37,7 @@ export const WeekNavigation = ({
           onClick={onShowShoppingList}
         >
           <ShoppingCart className="mr-2 h-4 w-4" />
-          Generate Shopping List
+          Shopping List
         </Button>
       </div>
     </div>
