@@ -69,9 +69,15 @@ export const FoodRecommendations = () => {
   });
 
   const handleRefresh = async () => {
+    // Add timestamp to force a new query
+    const timestamp = new Date().getTime();
     // Invalidate the current recommendations query to force a refetch
-    await queryClient.invalidateQueries({ queryKey: ["recommendations"] });
-    refetch();
+    await queryClient.invalidateQueries({ 
+      queryKey: ["recommendations", nutrients],
+      refetchType: 'active',
+    });
+    // Manually trigger a refetch with the new timestamp
+    await refetch();
   };
 
   if (isLoading) {
