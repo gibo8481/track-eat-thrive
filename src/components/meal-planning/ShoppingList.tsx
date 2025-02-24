@@ -68,11 +68,12 @@ export const ShoppingList = ({ mealPlanId, open, onOpenChange }: ShoppingListPro
       // Get all recipes from meal plan
       const { data: mealPlan, error: mealPlanError } = await supabase
         .from("meal_plans")
-        .select("*, planned_meals(*, recipes(*, recipe_ingredients(*, food_items(*))))")
+        .select("*, planned_meals!inner(*, recipes!inner(*, recipe_ingredients!inner(*, food_items!inner(*))))")
         .eq("id", mealPlanId)
         .single();
 
       if (mealPlanError) throw mealPlanError;
+      console.log("Meal plan data:", mealPlan);
 
       // Delete existing items
       const { error: deleteError } = await supabase
@@ -84,6 +85,10 @@ export const ShoppingList = ({ mealPlanId, open, onOpenChange }: ShoppingListPro
 
       // Generate new items from recipes
       const items = mealPlan.planned_meals.flatMap((meal: any, index: number) => {
+        if (!meal.recipes || !meal.recipes.recipe_ingredients) {
+          console.warn("Missing recipe data for meal:", meal);
+          return [];
+        }
         return meal.recipes.recipe_ingredients.map((ingredient: any) => ({
           shopping_list_id: list.id,
           food_item_id: ingredient.food_item_id,
@@ -92,14 +97,22 @@ export const ShoppingList = ({ mealPlanId, open, onOpenChange }: ShoppingListPro
           shopping_run: Math.floor(index / (7 / splitIntoRuns)) + 1,
           purchased: false,
         }));
-      });
+      }).filter(item => item); // Remove any undefined items
 
       if (items.length > 0) {
+        console.log("Inserting shopping list items:", items);
         const { error: insertError } = await supabase
           .from("shopping_list_items")
           .insert(items);
 
         if (insertError) throw insertError;
+      } else {
+        console.log("No items to insert - meal plan might be empty");
+        toast({
+          title: "No items to add",
+          description: "Add some meals to your plan first.",
+          variant: "destructive",
+        });
       }
     },
     onSuccess: () => {
