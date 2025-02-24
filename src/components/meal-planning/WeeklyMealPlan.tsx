@@ -67,14 +67,20 @@ export const WeeklyMealPlan = () => {
       dayOfWeek: number;
       mealType: string;
     }) => {
+      if (!recipe?.id) {
+        throw new Error("Invalid recipe selected");
+      }
+
       // Check for existing planned meal
-      const { data: existingMeal } = await supabase
+      const { data: existingMeal, error: findError } = await supabase
         .from("planned_meals")
         .select("id")
         .eq("meal_plan_id", mealPlan?.id)
         .eq("day_of_week", dayOfWeek)
         .eq("meal_type", mealType)
-        .single();
+        .maybeSingle();
+
+      if (findError) throw findError;
 
       if (existingMeal) {
         // Update existing meal
@@ -180,13 +186,15 @@ export const WeeklyMealPlan = () => {
                   <div key={mealType} className="space-y-2">
                     <h4 className="text-sm font-medium capitalize">{mealType}</h4>
                     <RecipeSelector
-                      onSelect={(recipe) =>
-                        addMealMutation.mutate({
-                          recipe,
-                          dayOfWeek: dayIndex,
-                          mealType,
-                        })
-                      }
+                      onSelect={(recipe) => {
+                        if (recipe) {
+                          addMealMutation.mutate({
+                            recipe,
+                            dayOfWeek: dayIndex,
+                            mealType,
+                          });
+                        }
+                      }}
                       trigger={
                         <Button
                           variant="outline"
