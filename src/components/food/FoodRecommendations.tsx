@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Clock, ExternalLink } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 export const FoodRecommendations = () => {
   const { data: nutrients } = useQuery({
@@ -28,14 +29,14 @@ export const FoodRecommendations = () => {
     }
   });
 
-  const { data: recommendations, isLoading } = useQuery({
+  const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ["recommendations", nutrients],
     queryFn: async () => {
       if (!nutrients) return null;
       
       console.log("Fetching recommendations with nutrients:", nutrients);
       
-      const response = await fetch('/functions/v1/get-recommendations', {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-recommendations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,12 +45,17 @@ export const FoodRecommendations = () => {
         body: JSON.stringify({ nutrients })
       });
       
-      if (!response.ok) throw new Error('Failed to get recommendations');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to get recommendations: ${response.status} ${errorText}`);
+      }
+      
       const data = await response.json();
       console.log("Received recommendations:", data);
       return data;
     },
-    enabled: !!nutrients
+    enabled: !!nutrients,
+    retry: 1
   });
 
   if (isLoading) {
@@ -59,6 +65,18 @@ export const FoodRecommendations = () => {
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-20 w-full" />
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>
+          Failed to load recommendations: {error.message}
+        </AlertDescription>
+      </Alert>
     );
   }
 
