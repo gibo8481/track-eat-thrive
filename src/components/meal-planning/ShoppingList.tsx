@@ -68,11 +68,19 @@ export const ShoppingList = ({ mealPlanId, open, onOpenChange }: ShoppingListPro
       // Get all recipes from meal plan
       const { data: mealPlan, error: mealPlanError } = await supabase
         .from("meal_plans")
-        .select("*, planned_meals!inner(*, recipes!inner(*, recipe_ingredients!inner(*, food_items!inner(*))))")
+        .select("*, planned_meals(*, recipes(*, recipe_ingredients(*, food_items(*))))")
         .eq("id", mealPlanId)
-        .single();
+        .maybeSingle();
 
       if (mealPlanError) throw mealPlanError;
+      if (!mealPlan) {
+        toast({
+          title: "No meal plan found",
+          description: "Please create a meal plan first.",
+          variant: "destructive",
+        });
+        return;
+      }
       console.log("Meal plan data:", mealPlan);
 
       // Delete existing items
@@ -84,8 +92,8 @@ export const ShoppingList = ({ mealPlanId, open, onOpenChange }: ShoppingListPro
       if (deleteError) throw deleteError;
 
       // Generate new items from recipes
-      const items = mealPlan.planned_meals.flatMap((meal: any, index: number) => {
-        if (!meal.recipes || !meal.recipes.recipe_ingredients) {
+      const items = mealPlan.planned_meals?.flatMap((meal: any, index: number) => {
+        if (!meal?.recipes?.recipe_ingredients) {
           console.warn("Missing recipe data for meal:", meal);
           return [];
         }
@@ -97,7 +105,7 @@ export const ShoppingList = ({ mealPlanId, open, onOpenChange }: ShoppingListPro
           shopping_run: Math.floor(index / (7 / splitIntoRuns)) + 1,
           purchased: false,
         }));
-      }).filter(item => item); // Remove any undefined items
+      }).filter(item => item) || []; // Handle case where planned_meals is null
 
       if (items.length > 0) {
         console.log("Inserting shopping list items:", items);
