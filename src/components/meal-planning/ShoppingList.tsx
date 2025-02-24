@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -29,8 +30,9 @@ export const ShoppingList = ({ mealPlanId, open, onOpenChange }: ShoppingListPro
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [splitIntoRuns, setSplitIntoRuns] = useState(1);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const { data: shoppingList } = useQuery({
+  const { data: shoppingList, isLoading } = useQuery({
     queryKey: ["shoppingList", mealPlanId],
     queryFn: async () => {
       if (!mealPlanId) return null;
@@ -39,25 +41,85 @@ export const ShoppingList = ({ mealPlanId, open, onOpenChange }: ShoppingListPro
         .from("shopping_lists")
         .select("*, shopping_list_items(*, food_items(*))")
         .eq("meal_plan_id", mealPlanId)
-        .single();
+        .maybeSingle();
 
-      if (listError && listError.code !== "PGRST116") throw listError;
-
-      if (!list) {
-        // Create new shopping list
-        const { data: newList, error: createError } = await supabase
-          .from("shopping_lists")
-          .insert({ meal_plan_id: mealPlanId, split_into_runs: splitIntoRuns })
-          .select("*")
-          .single();
-
-        if (createError) throw createError;
-        return newList;
-      }
-
+      if (listError) throw listError;
       return list;
     },
     enabled: !!mealPlanId,
+  });
+
+  const generateListMutation = useMutation({
+    mutationFn: async () => {
+      if (!mealPlanId) return;
+
+      // First, create or update shopping list
+      const { data: list, error: listError } = await supabase
+        .from("shopping_lists")
+        .upsert({
+          meal_plan_id: mealPlanId,
+          split_into_runs: splitIntoRuns,
+        })
+        .select("id")
+        .single();
+
+      if (listError) throw listError;
+
+      // Get all recipes from meal plan
+      const { data: mealPlan, error: mealPlanError } = await supabase
+        .from("meal_plans")
+        .select("*, planned_meals(*, recipes(*, recipe_ingredients(*, food_items(*))))")
+        .eq("id", mealPlanId)
+        .single();
+
+      if (mealPlanError) throw mealPlanError;
+
+      // Delete existing items
+      const { error: deleteError } = await supabase
+        .from("shopping_list_items")
+        .delete()
+        .eq("shopping_list_id", list.id);
+
+      if (deleteError) throw deleteError;
+
+      // Generate new items from recipes
+      const items = mealPlan.planned_meals.flatMap((meal: any, index: number) => {
+        return meal.recipes.recipe_ingredients.map((ingredient: any) => ({
+          shopping_list_id: list.id,
+          food_item_id: ingredient.food_item_id,
+          amount: ingredient.amount,
+          unit: ingredient.unit,
+          shopping_run: Math.floor(index / (7 / splitIntoRuns)) + 1,
+          purchased: false,
+        }));
+      });
+
+      if (items.length > 0) {
+        const { error: insertError } = await supabase
+          .from("shopping_list_items")
+          .insert(items);
+
+        if (insertError) throw insertError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["shoppingList"] });
+      toast({
+        title: "Shopping list generated",
+        description: "Your shopping list has been updated based on your meal plan.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to generate shopping list. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error generating shopping list:", error);
+    },
+    onSettled: () => {
+      setIsGenerating(false);
+    },
   });
 
   const toggleItemMutation = useMutation({
@@ -73,6 +135,11 @@ export const ShoppingList = ({ mealPlanId, open, onOpenChange }: ShoppingListPro
       queryClient.invalidateQueries({ queryKey: ["shoppingList"] });
     },
   });
+
+  const handleGenerateList = () => {
+    setIsGenerating(true);
+    generateListMutation.mutate();
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -96,6 +163,12 @@ export const ShoppingList = ({ mealPlanId, open, onOpenChange }: ShoppingListPro
                 <SelectItem value="3">Split into 3 runs</SelectItem>
               </SelectContent>
             </Select>
+            <Button 
+              onClick={handleGenerateList}
+              disabled={isGenerating}
+            >
+              {isGenerating ? "Generating..." : "Generate List"}
+            </Button>
           </div>
 
           <div className="space-y-6">
