@@ -22,22 +22,27 @@ export const FoodLogForm = () => {
   const [servingSize, setServingSize] = useState("");
   const [servings, setServings] = useState("1");
   const [mealType, setMealType] = useState("Breakfast");
-  const [nutritionValues, setNutritionValues] = useState({
-    calories: "",
-    protein: "",
-    carbs: "",
-    fat: "",
-    fiber: "",
-    vitaminA: "",
-    vitaminD: "",
-    vitaminK: "",
-    vitaminB1: "",
-    vitaminB6: "",
-    vitaminB12: "",
-  });
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  const handleNutritionChange = (field: keyof typeof nutritionValues, value: string) => {
-    setNutritionValues(prev => ({ ...prev, [field]: value }));
+  const searchFood = async (query: string) => {
+    if (!query) return;
+    
+    try {
+      const response = await fetch(
+        `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(
+          query
+        )}&pageSize=5&api_key=DEMO_KEY`
+      );
+      const data = await response.json();
+      setSearchResults(data.foods || []);
+    } catch (error) {
+      console.error("Failed to search foods:", error);
+      toast({
+        title: "Error",
+        description: "Failed to search for food items",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,30 +50,53 @@ export const FoodLogForm = () => {
     setLoading(true);
 
     try {
-      // First, create the food item
+      // Get nutritional information from the API
+      const response = await fetch(
+        `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(
+          foodName
+        )}&pageSize=1&api_key=DEMO_KEY`
+      );
+      const data = await response.json();
+      
+      if (!data.foods || data.foods.length === 0) {
+        throw new Error("No nutritional information found for this food");
+      }
+
+      const foodInfo = data.foods[0];
+      const nutrients = foodInfo.foodNutrients;
+
+      // Helper function to find nutrient value
+      const getNutrientValue = (nutrientName: string) => {
+        const nutrient = nutrients.find((n: any) => 
+          n.nutrientName.toLowerCase().includes(nutrientName.toLowerCase())
+        );
+        return nutrient ? nutrient.value : 0;
+      };
+
+      // Create the food item with fetched nutritional data
       const { data: foodItem, error: foodError } = await supabase
         .from("food_items")
         .insert({
           name: foodName,
           serving_size: servingSize,
-          calories: parseFloat(nutritionValues.calories),
-          protein_g: parseFloat(nutritionValues.protein),
-          carbs_g: parseFloat(nutritionValues.carbs),
-          fat_g: parseFloat(nutritionValues.fat),
-          fiber_g: parseFloat(nutritionValues.fiber),
-          vitamin_a_mcg: parseFloat(nutritionValues.vitaminA),
-          vitamin_d_mcg: parseFloat(nutritionValues.vitaminD),
-          vitamin_k_mcg: parseFloat(nutritionValues.vitaminK),
-          vitamin_b1_mg: parseFloat(nutritionValues.vitaminB1),
-          vitamin_b6_mg: parseFloat(nutritionValues.vitaminB6),
-          vitamin_b12_mcg: parseFloat(nutritionValues.vitaminB12),
+          calories: getNutrientValue("Energy"),
+          protein_g: getNutrientValue("Protein"),
+          carbs_g: getNutrientValue("Carbohydrate"),
+          fat_g: getNutrientValue("Total lipid (fat)"),
+          fiber_g: getNutrientValue("Fiber"),
+          vitamin_a_mcg: getNutrientValue("Vitamin A"),
+          vitamin_d_mcg: getNutrientValue("Vitamin D"),
+          vitamin_k_mcg: getNutrientValue("Vitamin K"),
+          vitamin_b1_mg: getNutrientValue("Thiamin"),
+          vitamin_b6_mg: getNutrientValue("Vitamin B-6"),
+          vitamin_b12_mcg: getNutrientValue("Vitamin B-12"),
         })
         .select()
         .single();
 
       if (foodError) throw foodError;
 
-      // Then, create the food log entry
+      // Create the food log entry
       const { data: profile } = await supabase.auth.getUser();
       if (!profile.user) throw new Error("User not found");
 
@@ -93,19 +121,7 @@ export const FoodLogForm = () => {
       setServingSize("");
       setServings("1");
       setMealType("Breakfast");
-      setNutritionValues({
-        calories: "",
-        protein: "",
-        carbs: "",
-        fat: "",
-        fiber: "",
-        vitaminA: "",
-        vitaminD: "",
-        vitaminK: "",
-        vitaminB1: "",
-        vitaminB6: "",
-        vitaminB12: "",
-      });
+      setSearchResults([]);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -125,9 +141,29 @@ export const FoodLogForm = () => {
           <Input
             id="foodName"
             value={foodName}
-            onChange={(e) => setFoodName(e.target.value)}
+            onChange={(e) => {
+              setFoodName(e.target.value);
+              searchFood(e.target.value);
+            }}
             required
           />
+          {searchResults.length > 0 && (
+            <div className="mt-2 p-2 bg-background border rounded-md shadow-sm">
+              {searchResults.map((food) => (
+                <button
+                  key={food.fdcId}
+                  type="button"
+                  className="w-full text-left p-2 hover:bg-accent rounded-sm text-sm"
+                  onClick={() => {
+                    setFoodName(food.description);
+                    setSearchResults([]);
+                  }}
+                >
+                  {food.description}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="servingSize">Serving Size</Label>
@@ -168,135 +204,6 @@ export const FoodLogForm = () => {
               ))}
             </SelectContent>
           </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="calories">Calories</Label>
-          <Input
-            id="calories"
-            type="number"
-            value={nutritionValues.calories}
-            onChange={(e) => handleNutritionChange("calories", e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="protein">Protein (g)</Label>
-          <Input
-            id="protein"
-            type="number"
-            step="0.1"
-            value={nutritionValues.protein}
-            onChange={(e) => handleNutritionChange("protein", e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="carbs">Carbs (g)</Label>
-          <Input
-            id="carbs"
-            type="number"
-            step="0.1"
-            value={nutritionValues.carbs}
-            onChange={(e) => handleNutritionChange("carbs", e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="fat">Fat (g)</Label>
-          <Input
-            id="fat"
-            type="number"
-            step="0.1"
-            value={nutritionValues.fat}
-            onChange={(e) => handleNutritionChange("fat", e.target.value)}
-            required
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="fiber">Fiber (g)</Label>
-          <Input
-            id="fiber"
-            type="number"
-            step="0.1"
-            value={nutritionValues.fiber}
-            onChange={(e) => handleNutritionChange("fiber", e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="vitaminA">Vitamin A (mcg)</Label>
-          <Input
-            id="vitaminA"
-            type="number"
-            step="0.1"
-            value={nutritionValues.vitaminA}
-            onChange={(e) => handleNutritionChange("vitaminA", e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="vitaminD">Vitamin D (mcg)</Label>
-          <Input
-            id="vitaminD"
-            type="number"
-            step="0.1"
-            value={nutritionValues.vitaminD}
-            onChange={(e) => handleNutritionChange("vitaminD", e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="vitaminK">Vitamin K (mcg)</Label>
-          <Input
-            id="vitaminK"
-            type="number"
-            step="0.1"
-            value={nutritionValues.vitaminK}
-            onChange={(e) => handleNutritionChange("vitaminK", e.target.value)}
-            required
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="vitaminB1">Vitamin B1 (mg)</Label>
-          <Input
-            id="vitaminB1"
-            type="number"
-            step="0.1"
-            value={nutritionValues.vitaminB1}
-            onChange={(e) => handleNutritionChange("vitaminB1", e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="vitaminB6">Vitamin B6 (mg)</Label>
-          <Input
-            id="vitaminB6"
-            type="number"
-            step="0.1"
-            value={nutritionValues.vitaminB6}
-            onChange={(e) => handleNutritionChange("vitaminB6", e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="vitaminB12">Vitamin B12 (mcg)</Label>
-          <Input
-            id="vitaminB12"
-            type="number"
-            step="0.1"
-            value={nutritionValues.vitaminB12}
-            onChange={(e) => handleNutritionChange("vitaminB12", e.target.value)}
-            required
-          />
         </div>
       </div>
 
