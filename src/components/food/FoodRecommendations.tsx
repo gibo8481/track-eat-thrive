@@ -39,25 +39,27 @@ export const FoodRecommendations = () => {
     queryFn: async () => {
       if (!nutrients) return null;
       
-      console.log("Fetching recommendations with nutrients:", nutrients);
+      console.log("Starting to fetch recommendations with nutrients:", nutrients);
       
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-recommendations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        },
-        body: JSON.stringify({ nutrients })
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to get recommendations: ${response.status} ${errorText}`);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log("Got session, attempting to call edge function");
+        
+        const response = await supabase.functions.invoke('get-recommendations', {
+          body: { nutrients }
+        });
+        
+        console.log("Edge function response:", response);
+        
+        if (response.error) {
+          throw new Error(`Edge function error: ${response.error.message}`);
+        }
+        
+        return response.data;
+      } catch (error) {
+        console.error("Error in recommendations query:", error);
+        throw error;
       }
-      
-      const data = await response.json();
-      console.log("Received recommendations:", data);
-      return data;
     },
     enabled: !!nutrients,
     retry: 1
