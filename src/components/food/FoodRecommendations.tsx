@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock } from "lucide-react";
+import { Clock, ExternalLink } from "lucide-react";
 
 export const FoodRecommendations = () => {
   const { data: nutrients } = useQuery({
@@ -104,20 +104,44 @@ export const FoodRecommendations = () => {
                         key={recipe.id}
                         className="border rounded-lg p-3 bg-muted/50"
                       >
-                        <div className="space-y-1">
-                          <h5 className="font-medium">{recipe.name}</h5>
-                          {recipe.description && (
-                            <p className="text-sm text-muted-foreground">
-                              {recipe.description}
-                            </p>
+                        <div className="flex gap-4">
+                          {recipe.image && (
+                            <img
+                              src={recipe.image}
+                              alt={recipe.name}
+                              className="w-24 h-24 object-cover rounded-md"
+                            />
                           )}
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Clock className="h-4 w-4" />
-                            <span>
-                              {recipe.prep_time_minutes + recipe.cooking_time_minutes} min
-                            </span>
-                            <span>•</span>
-                            <span>{recipe.rating}⭐</span>
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <h5 className="font-medium">{recipe.name}</h5>
+                              {recipe.sourceUrl && (
+                                <a
+                                  href={recipe.sourceUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-muted-foreground hover:text-primary"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              )}
+                            </div>
+                            {recipe.description && (
+                              <p 
+                                className="text-sm text-muted-foreground"
+                                dangerouslySetInnerHTML={{ 
+                                  __html: recipe.description.substring(0, 150) + '...'
+                                }}
+                              />
+                            )}
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Clock className="h-4 w-4" />
+                              <span>
+                                {recipe.prep_time_minutes + recipe.cooking_time_minutes} min
+                              </span>
+                              <span>•</span>
+                              <span>{recipe.rating.toFixed(1)}⭐</span>
+                            </div>
                           </div>
                         </div>
                       </div>

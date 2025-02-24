@@ -7,6 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const SPOONACULAR_API_KEY = Deno.env.get('SPOONACULAR_API_KEY');
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -15,12 +17,6 @@ serve(async (req) => {
   try {
     const { nutrients } = await req.json();
     console.log("Received nutrients:", nutrients);
-
-    // Create Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
     const recommendations = [];
 
@@ -40,37 +36,37 @@ serve(async (req) => {
         name: 'Vitamin A',
         current: nutrients.total_vitamin_a || 0,
         recommended: dailyRecommended.vitamin_a_mcg,
-        column: 'vitamin_a_mcg',
+        spoonacularName: 'Vitamin A',
       },
       {
         name: 'Vitamin D',
         current: nutrients.total_vitamin_d || 0,
         recommended: dailyRecommended.vitamin_d_mcg,
-        column: 'vitamin_d_mcg',
+        spoonacularName: 'Vitamin D',
       },
       {
         name: 'Vitamin K',
         current: nutrients.total_vitamin_k || 0,
         recommended: dailyRecommended.vitamin_k_mcg,
-        column: 'vitamin_k_mcg',
+        spoonacularName: 'Vitamin K',
       },
       {
         name: 'Vitamin B1',
         current: nutrients.total_vitamin_b1 || 0,
         recommended: dailyRecommended.vitamin_b1_mg,
-        column: 'vitamin_b1_mg',
+        spoonacularName: 'Vitamin B1',
       },
       {
         name: 'Vitamin B6',
         current: nutrients.total_vitamin_b6 || 0,
         recommended: dailyRecommended.vitamin_b6_mg,
-        column: 'vitamin_b6_mg',
+        spoonacularName: 'Vitamin B6',
       },
       {
         name: 'Vitamin B12',
         current: nutrients.total_vitamin_b12 || 0,
         recommended: dailyRecommended.vitamin_b12_mcg,
-        column: 'vitamin_b12_mcg',
+        spoonacularName: 'Vitamin B12',
       },
     ];
 
@@ -79,42 +75,70 @@ serve(async (req) => {
       if (check.current < check.recommended) {
         console.log(`Finding recommendations for ${check.name}`);
         
-        // First get nutrient-rich ingredients
-        const { data: foods } = await supabaseClient
-          .from('food_items')
-          .select('id, name, ' + check.column)
-          .order(check.column, { ascending: false })
-          .limit(5);
+        try {
+          // First get recipes rich in this nutrient
+          const recipesResponse = await fetch(
+            `https://api.spoonacular.com/recipes/findByNutrients?min${check.spoonacularName}Percent=50&number=3&apiKey=${SPOONACULAR_API_KEY}`,
+            { headers: { 'Content-Type': 'application/json' } }
+          );
+          
+          if (!recipesResponse.ok) {
+            throw new Error(`Spoonacular API error: ${recipesResponse.statusText}`);
+          }
 
-        if (foods && foods.length > 0) {
-          // Then find recipes containing these ingredients
-          const foodIds = foods.map((food: any) => food.id);
-          const { data: recipes } = await supabaseClient
-            .from('recipes')
-            .select(`
-              id,
-              name,
-              description,
-              cooking_time_minutes,
-              prep_time_minutes,
-              rating,
-              recipe_ingredients!inner(food_item_id)
-            `)
-            .in('recipe_ingredients.food_item_id', foodIds)
-            .order('rating', { ascending: false })
-            .limit(3);
+          const recipes = await recipesResponse.json();
+          console.log(`Found ${recipes.length} recipes for ${check.name}`);
+
+          // Get detailed recipe information including preparation time
+          const detailedRecipes = await Promise.all(
+            recipes.map(async (recipe: any) => {
+              const detailResponse = await fetch(
+                `https://api.spoonacular.com/recipes/${recipe.id}/information?apiKey=${SPOONACULAR_API_KEY}`,
+                { headers: { 'Content-Type': 'application/json' } }
+              );
+              
+              if (!detailResponse.ok) {
+                throw new Error(`Failed to get recipe details: ${detailResponse.statusText}`);
+              }
+
+              return detailResponse.json();
+            })
+          );
+
+          // Get nutrient-rich foods
+          const foodsResponse = await fetch(
+            `https://api.spoonacular.com/food/ingredients/search?query=${check.spoonacularName}&number=5&apiKey=${SPOONACULAR_API_KEY}`,
+            { headers: { 'Content-Type': 'application/json' } }
+          );
+
+          if (!foodsResponse.ok) {
+            throw new Error(`Failed to get foods: ${foodsResponse.statusText}`);
+          }
+
+          const foods = await foodsResponse.json();
 
           recommendations.push({
             nutrient: check.name,
             current: check.current,
             recommended: check.recommended,
             deficiency: check.recommended - check.current,
-            foods: foods.map((food: any) => ({
+            foods: foods.results.map((food: any) => ({
               name: food.name,
-              amount: food[check.column],
+              amount: food.nutrition?.nutrients?.find((n: any) => n.name === check.spoonacularName)?.amount || 0,
             })),
-            recipes: recipes || [],
+            recipes: detailedRecipes.map((recipe: any) => ({
+              id: recipe.id,
+              name: recipe.title,
+              description: recipe.summary,
+              prep_time_minutes: recipe.preparationMinutes || 15,
+              cooking_time_minutes: recipe.cookingMinutes || 30,
+              rating: recipe.spoonacularScore / 20, // Convert to 5-star scale
+              image: recipe.image,
+              sourceUrl: recipe.sourceUrl,
+            })),
           });
+        } catch (error) {
+          console.error(`Error fetching ${check.name} recommendations:`, error);
         }
       }
     }
