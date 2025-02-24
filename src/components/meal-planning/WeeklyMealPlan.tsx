@@ -23,10 +23,17 @@ export const WeeklyMealPlan = () => {
   const { data: mealPlan, isLoading: mealPlanLoading } = useQuery({
     queryKey: ["mealPlan", currentWeek],
     queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        throw new Error("User must be authenticated");
+      }
+
       const { data: existingPlan, error: fetchError } = await supabase
         .from("meal_plans")
         .select("*, planned_meals(*, recipes(*))")
         .eq("week_start_date", format(currentWeek, "yyyy-MM-dd"))
+        .eq("user_id", session.user.id)
         .single();
 
       if (fetchError && fetchError.code !== "PGRST116") throw fetchError;
@@ -36,6 +43,7 @@ export const WeeklyMealPlan = () => {
           .from("meal_plans")
           .insert({
             week_start_date: format(currentWeek, "yyyy-MM-dd"),
+            user_id: session.user.id
           })
           .select("*")
           .single();
@@ -59,21 +67,51 @@ export const WeeklyMealPlan = () => {
       dayOfWeek: number;
       mealType: string;
     }) => {
-      const { error } = await supabase.from("planned_meals").upsert({
-        meal_plan_id: mealPlan?.id,
-        recipe_id: recipe.id,
-        day_of_week: dayOfWeek,
-        meal_type: mealType,
-      });
+      // Check for existing planned meal
+      const { data: existingMeal } = await supabase
+        .from("planned_meals")
+        .select("id")
+        .eq("meal_plan_id", mealPlan?.id)
+        .eq("day_of_week", dayOfWeek)
+        .eq("meal_type", mealType)
+        .single();
 
-      if (error) throw error;
+      if (existingMeal) {
+        // Update existing meal
+        const { error: updateError } = await supabase
+          .from("planned_meals")
+          .update({ recipe_id: recipe.id })
+          .eq("id", existingMeal.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // Insert new meal
+        const { error: insertError } = await supabase
+          .from("planned_meals")
+          .insert({
+            meal_plan_id: mealPlan?.id,
+            recipe_id: recipe.id,
+            day_of_week: dayOfWeek,
+            meal_type: mealType,
+          });
+
+        if (insertError) throw insertError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mealPlan"] });
       toast({
-        title: "Meal added",
-        description: "The meal has been added to your plan.",
+        title: "Meal updated",
+        description: "The meal has been updated in your plan.",
       });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update meal. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error updating meal:", error);
     },
   });
 
