@@ -1,8 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-
-const USDA_API_KEY = Deno.env.get("USDA_API_KEY");
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,45 +9,109 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     const { nutrients } = await req.json();
-    const deficientNutrients = [];
 
-    // Check for nutrient deficiencies
-    if (nutrients.total_vitamin_a < 900) deficientNutrients.push('Vitamin A');
-    if (nutrients.total_vitamin_d < 20) deficientNutrients.push('Vitamin D');
-    if (nutrients.total_vitamin_k < 120) deficientNutrients.push('Vitamin K');
-    if (nutrients.total_vitamin_b1 < 1.2) deficientNutrients.push('Vitamin B1');
-    if (nutrients.total_vitamin_b6 < 1.7) deficientNutrients.push('Vitamin B6');
-    if (nutrients.total_vitamin_b12 < 2.4) deficientNutrients.push('Vitamin B12');
+    // Create Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    // Query USDA API for foods rich in deficient nutrients
     const recommendations = [];
-    for (const nutrient of deficientNutrients) {
-      const query = encodeURIComponent(`${nutrient} rich foods`);
-      const response = await fetch(
-        `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${USDA_API_KEY}&query=${query}&pageSize=5`
-      );
-      const data = await response.json();
-      recommendations.push({
-        nutrient,
-        foods: data.foods.map((food: any) => ({
-          name: food.description,
-          nutrients: food.foodNutrients
-        }))
-      });
+
+    // Define daily recommended values
+    const dailyRecommended = {
+      vitamin_a_mcg: 900,
+      vitamin_d_mcg: 20,
+      vitamin_k_mcg: 120,
+      vitamin_b1_mg: 1.2,
+      vitamin_b6_mg: 1.7,
+      vitamin_b12_mcg: 2.4,
+    };
+
+    // Check each nutrient and find food recommendations if deficient
+    const nutrientChecks = [
+      {
+        name: 'Vitamin A',
+        current: nutrients.total_vitamin_a || 0,
+        recommended: dailyRecommended.vitamin_a_mcg,
+        column: 'vitamin_a_mcg',
+      },
+      {
+        name: 'Vitamin D',
+        current: nutrients.total_vitamin_d || 0,
+        recommended: dailyRecommended.vitamin_d_mcg,
+        column: 'vitamin_d_mcg',
+      },
+      {
+        name: 'Vitamin K',
+        current: nutrients.total_vitamin_k || 0,
+        recommended: dailyRecommended.vitamin_k_mcg,
+        column: 'vitamin_k_mcg',
+      },
+      {
+        name: 'Vitamin B1',
+        current: nutrients.total_vitamin_b1 || 0,
+        recommended: dailyRecommended.vitamin_b1_mg,
+        column: 'vitamin_b1_mg',
+      },
+      {
+        name: 'Vitamin B6',
+        current: nutrients.total_vitamin_b6 || 0,
+        recommended: dailyRecommended.vitamin_b6_mg,
+        column: 'vitamin_b6_mg',
+      },
+      {
+        name: 'Vitamin B12',
+        current: nutrients.total_vitamin_b12 || 0,
+        recommended: dailyRecommended.vitamin_b12_mcg,
+        column: 'vitamin_b12_mcg',
+      },
+    ];
+
+    // Check each nutrient and get recommendations if needed
+    for (const check of nutrientChecks) {
+      if (check.current < check.recommended) {
+        // Find foods rich in this nutrient
+        const { data: foods } = await supabaseClient
+          .from('food_items')
+          .select('name, ' + check.column)
+          .order(check.column, { ascending: false })
+          .limit(5);
+
+        if (foods && foods.length > 0) {
+          recommendations.push({
+            nutrient: check.name,
+            current: check.current,
+            recommended: check.recommended,
+            deficiency: check.recommended - check.current,
+            foods: foods.map((food: any) => ({
+              name: food.name,
+              amount: food[check.column],
+            })),
+          });
+        }
+      }
     }
 
-    return new Response(JSON.stringify({ recommendations }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ recommendations }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      },
+    );
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      },
+    );
   }
 });
