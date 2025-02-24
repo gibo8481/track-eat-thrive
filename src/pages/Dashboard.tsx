@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FoodLogForm } from "@/components/food/FoodLogForm";
 import { NutrientSummary } from "@/components/food/NutrientSummary";
+import { FoodRecommendations } from "@/components/food/FoodRecommendations";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -59,6 +60,15 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <NutrientSummary />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recommended Foods</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FoodRecommendations />
           </CardContent>
         </Card>
       </div>
