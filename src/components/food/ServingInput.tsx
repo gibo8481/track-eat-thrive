@@ -1,6 +1,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 interface ServingInputProps {
   servingSize: string;
@@ -8,6 +9,15 @@ interface ServingInputProps {
   onServingSizeChange: (size: string) => void;
   onServingsChange: (servings: string) => void;
 }
+
+const COMMON_SERVING_SIZES = [
+  "100g",
+  "1 cup",
+  "1 tbsp",
+  "1 tsp",
+  "1 oz",
+  "1 piece",
+];
 
 export const ServingInput = ({
   servingSize,
@@ -26,6 +36,20 @@ export const ServingInput = ({
           required
           placeholder="e.g., 100g"
         />
+        <div className="flex flex-wrap gap-2 mt-2">
+          {COMMON_SERVING_SIZES.map((size) => (
+            <Button
+              key={size}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => onServingSizeChange(size)}
+            >
+              {size}
+            </Button>
+          ))}
+        </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="servings">Number of Servings</Label>
