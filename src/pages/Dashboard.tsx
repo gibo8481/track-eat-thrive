@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FoodLogForm } from "@/components/food/FoodLogForm";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -41,42 +42,53 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>Today's Nutrition</CardTitle>
+            <CardTitle>Log Food</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* We'll implement nutrition tracking here */}
-            <p className="text-sm text-muted-foreground">
-              Track your daily nutrition intake
-            </p>
+            <FoodLogForm />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Vitamin Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* We'll implement vitamin tracking here */}
-            <p className="text-sm text-muted-foreground">
-              Monitor your vitamin levels
-            </p>
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Today's Nutrition</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* We'll implement the nutrition summary next */}
+              <p className="text-sm text-muted-foreground">
+                Track your daily nutrition intake
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Meal Recommendations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* We'll implement meal recommendations here */}
-            <p className="text-sm text-muted-foreground">
-              Get personalized meal suggestions
-            </p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Vitamin Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* We'll implement the vitamin tracking next */}
+              <p className="text-sm text-muted-foreground">
+                Monitor your vitamin levels
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Meal Recommendations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* We'll implement meal recommendations next */}
+              <p className="text-sm text-muted-foreground">
+                Get personalized meal suggestions
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </DashboardLayout>
   );

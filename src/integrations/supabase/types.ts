@@ -9,6 +9,105 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      food_items: {
+        Row: {
+          calories: number
+          carbs_g: number
+          created_at: string
+          fat_g: number
+          fiber_g: number
+          id: string
+          name: string
+          protein_g: number
+          serving_size: string
+          vitamin_a_mcg: number
+          vitamin_b1_mg: number
+          vitamin_b12_mcg: number
+          vitamin_b6_mg: number
+          vitamin_d_mcg: number
+          vitamin_k_mcg: number
+        }
+        Insert: {
+          calories: number
+          carbs_g: number
+          created_at?: string
+          fat_g: number
+          fiber_g: number
+          id?: string
+          name: string
+          protein_g: number
+          serving_size: string
+          vitamin_a_mcg?: number
+          vitamin_b1_mg?: number
+          vitamin_b12_mcg?: number
+          vitamin_b6_mg?: number
+          vitamin_d_mcg?: number
+          vitamin_k_mcg?: number
+        }
+        Update: {
+          calories?: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          fiber_g?: number
+          id?: string
+          name?: string
+          protein_g?: number
+          serving_size?: string
+          vitamin_a_mcg?: number
+          vitamin_b1_mg?: number
+          vitamin_b12_mcg?: number
+          vitamin_b6_mg?: number
+          vitamin_d_mcg?: number
+          vitamin_k_mcg?: number
+        }
+        Relationships: []
+      }
+      food_logs: {
+        Row: {
+          date: string
+          food_item_id: string
+          id: string
+          logged_at: string
+          meal_type: string
+          servings: number
+          user_id: string
+        }
+        Insert: {
+          date?: string
+          food_item_id: string
+          id?: string
+          logged_at?: string
+          meal_type: string
+          servings?: number
+          user_id: string
+        }
+        Update: {
+          date?: string
+          food_item_id?: string
+          id?: string
+          logged_at?: string
+          meal_type?: string
+          servings?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_logs_food_item_id_fkey"
+            columns: ["food_item_id"]
+            isOneToOne: false
+            referencedRelation: "food_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "food_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           activity_level: string | null
@@ -42,6 +141,126 @@ export type Database = {
           id?: string
           updated_at?: string
           weight_pounds?: number | null
+        }
+        Relationships: []
+      }
+      recipe_ingredients: {
+        Row: {
+          amount: number
+          food_item_id: string
+          id: string
+          recipe_id: string
+          unit: string
+        }
+        Insert: {
+          amount: number
+          food_item_id: string
+          id?: string
+          recipe_id: string
+          unit: string
+        }
+        Update: {
+          amount?: number
+          food_item_id?: string
+          id?: string
+          recipe_id?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_ingredients_food_item_id_fkey"
+            columns: ["food_item_id"]
+            isOneToOne: false
+            referencedRelation: "food_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_ingredients_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipe_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          rating: number
+          recipe_id: string
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating: number
+          recipe_id: string
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating?: number
+          recipe_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_reviews_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipes: {
+        Row: {
+          cooking_time_minutes: number | null
+          created_at: string
+          description: string | null
+          id: string
+          instructions: string
+          name: string
+          prep_time_minutes: number | null
+          rating: number | null
+          review_count: number | null
+          servings: number | null
+        }
+        Insert: {
+          cooking_time_minutes?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          instructions: string
+          name: string
+          prep_time_minutes?: number | null
+          rating?: number | null
+          review_count?: number | null
+          servings?: number | null
+        }
+        Update: {
+          cooking_time_minutes?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          instructions?: string
+          name?: string
+          prep_time_minutes?: number | null
+          rating?: number | null
+          review_count?: number | null
+          servings?: number | null
         }
         Relationships: []
       }
