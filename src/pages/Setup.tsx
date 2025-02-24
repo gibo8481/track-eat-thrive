@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 const activityLevels = [
@@ -27,6 +27,7 @@ const goals = [
 const Setup = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
   
   const [formData, setFormData] = useState({
     age: "",
@@ -38,6 +39,37 @@ const Setup = () => {
     heightInches: "",
   });
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error("Error checking auth status:", error);
+        toast({
+          title: "Error",
+          description: "Please sign in to continue",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      if (!session) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to set up your profile",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      setLoading(false);
+    };
+
+    checkAuth();
+  }, [navigate, toast]);
+
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -47,6 +79,7 @@ const Setup = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -57,6 +90,7 @@ const Setup = () => {
           description: "Please sign in to save your profile",
           variant: "destructive",
         });
+        navigate("/auth");
         return;
       }
 
@@ -82,15 +116,25 @@ const Setup = () => {
       });
       
       navigate("/dashboard");
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to save profile. Please try again.",
+        description: error.message || "Failed to save profile. Please try again.",
         variant: "destructive",
       });
       console.error("Error saving profile:", error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background py-8 px-4">
@@ -212,8 +256,8 @@ const Setup = () => {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full">
-                Save Profile
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Saving..." : "Save Profile"}
               </Button>
             </form>
           </CardContent>
