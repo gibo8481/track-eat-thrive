@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FoodLogForm } from "@/components/food/FoodLogForm";
 import { NutrientSummary } from "@/components/food/NutrientSummary";
 import { FoodRecommendations } from "@/components/food/FoodRecommendations";
+import { FoodLogHistory } from "@/components/food/FoodLogHistory";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -78,6 +79,16 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <NutrientSummary />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Food Log History</CardTitle>
+                <CardDescription>Your recently logged meals</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FoodLogHistory />
               </CardContent>
             </Card>
 
