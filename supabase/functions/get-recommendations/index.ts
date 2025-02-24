@@ -17,6 +17,10 @@ serve(async (req) => {
     const { nutrients } = await req.json();
     console.log("Received nutrients:", nutrients);
 
+    if (!SPOONACULAR_API_KEY) {
+      throw new Error('Spoonacular API key is not configured');
+    }
+
     const recommendations = [];
 
     // Define daily recommended values
@@ -29,109 +33,109 @@ serve(async (req) => {
       vitamin_b12_mcg: 2.4,
     };
 
+    // Mapping of nutrient names to Spoonacular parameter names
+    const spoonacularNutrientMap = {
+      'Vitamin A': 'vitaminA',
+      'Vitamin D': 'vitaminD',
+      'Vitamin K': 'vitaminK',
+      'Vitamin B1': 'vitaminB1',
+      'Vitamin B6': 'vitaminB6',
+      'Vitamin B12': 'vitaminB12'
+    };
+
     // Check each nutrient and find food recommendations if deficient
     const nutrientChecks = [
       {
         name: 'Vitamin A',
         current: nutrients.total_vitamin_a || 0,
         recommended: dailyRecommended.vitamin_a_mcg,
-        spoonacularName: 'Vitamin A',
+        spoonacularName: 'vitaminA',
       },
       {
         name: 'Vitamin D',
         current: nutrients.total_vitamin_d || 0,
         recommended: dailyRecommended.vitamin_d_mcg,
-        spoonacularName: 'Vitamin D',
+        spoonacularName: 'vitaminD',
       },
       {
         name: 'Vitamin K',
         current: nutrients.total_vitamin_k || 0,
         recommended: dailyRecommended.vitamin_k_mcg,
-        spoonacularName: 'Vitamin K',
+        spoonacularName: 'vitaminK',
       },
       {
         name: 'Vitamin B1',
         current: nutrients.total_vitamin_b1 || 0,
         recommended: dailyRecommended.vitamin_b1_mg,
-        spoonacularName: 'Vitamin B1',
+        spoonacularName: 'vitaminB1',
       },
       {
         name: 'Vitamin B6',
         current: nutrients.total_vitamin_b6 || 0,
         recommended: dailyRecommended.vitamin_b6_mg,
-        spoonacularName: 'Vitamin B6',
+        spoonacularName: 'vitaminB6',
       },
       {
         name: 'Vitamin B12',
         current: nutrients.total_vitamin_b12 || 0,
         recommended: dailyRecommended.vitamin_b12_mcg,
-        spoonacularName: 'Vitamin B12',
+        spoonacularName: 'vitaminB12',
       },
     ];
 
     // Check each nutrient and get recommendations if needed
     for (const check of nutrientChecks) {
-      if (check.current < check.recommended) {
-        console.log(`Finding recommendations for ${check.name}`);
+      const deficiency = check.recommended - check.current;
+      console.log(`Checking ${check.name}: Current=${check.current}, Recommended=${check.recommended}, Deficiency=${deficiency}`);
+      
+      if (deficiency > 0) {
+        console.log(`Finding recommendations for ${check.name} (deficiency: ${deficiency})`);
         
         try {
           // First get recipes rich in this nutrient
-          const recipesResponse = await fetch(
-            `https://api.spoonacular.com/recipes/findByNutrients?min${check.spoonacularName}Percent=50&number=3&apiKey=${SPOONACULAR_API_KEY}`,
-            { headers: { 'Content-Type': 'application/json' } }
-          );
+          const searchUrl = `https://api.spoonacular.com/recipes/complexSearch?apiKey=${SPOONACULAR_API_KEY}&number=3&addRecipeNutrition=true&sort=max${check.spoonacularName}&sortDirection=desc`;
+          console.log(`Fetching recipes from: ${searchUrl}`);
+          
+          const recipesResponse = await fetch(searchUrl);
           
           if (!recipesResponse.ok) {
+            const errorText = await recipesResponse.text();
+            console.error(`Spoonacular API error for ${check.name}:`, errorText);
             throw new Error(`Spoonacular API error: ${recipesResponse.statusText}`);
           }
 
-          const recipes = await recipesResponse.json();
-          console.log(`Found ${recipes.length} recipes for ${check.name}`);
-
-          // Get detailed recipe information including preparation time
-          const detailedRecipes = await Promise.all(
-            recipes.map(async (recipe: any) => {
-              const detailResponse = await fetch(
-                `https://api.spoonacular.com/recipes/${recipe.id}/information?apiKey=${SPOONACULAR_API_KEY}`,
-                { headers: { 'Content-Type': 'application/json' } }
-              );
-              
-              if (!detailResponse.ok) {
-                throw new Error(`Failed to get recipe details: ${detailResponse.statusText}`);
-              }
-
-              return detailResponse.json();
-            })
-          );
+          const recipesData = await recipesResponse.json();
+          console.log(`Found ${recipesData.results.length} recipes for ${check.name}`);
 
           // Get nutrient-rich foods
-          const foodsResponse = await fetch(
-            `https://api.spoonacular.com/food/ingredients/search?query=${check.spoonacularName}&number=5&apiKey=${SPOONACULAR_API_KEY}`,
-            { headers: { 'Content-Type': 'application/json' } }
-          );
+          const foodsUrl = `https://api.spoonacular.com/food/ingredients/search?query=${check.name}&number=5&apiKey=${SPOONACULAR_API_KEY}`;
+          console.log(`Fetching foods from: ${foodsUrl}`);
+          
+          const foodsResponse = await fetch(foodsUrl);
 
           if (!foodsResponse.ok) {
+            const errorText = await foodsResponse.text();
+            console.error(`Failed to get foods for ${check.name}:`, errorText);
             throw new Error(`Failed to get foods: ${foodsResponse.statusText}`);
           }
 
-          const foods = await foodsResponse.json();
+          const foodsData = await foodsResponse.json();
 
           recommendations.push({
             nutrient: check.name,
             current: check.current,
             recommended: check.recommended,
-            deficiency: check.recommended - check.current,
-            foods: foods.results.map((food: any) => ({
+            deficiency: deficiency,
+            foods: foodsData.results.map((food: any) => ({
               name: food.name,
-              amount: food.nutrition?.nutrients?.find((n: any) => n.name === check.spoonacularName)?.amount || 0,
             })),
-            recipes: detailedRecipes.map((recipe: any) => ({
+            recipes: recipesData.results.map((recipe: any) => ({
               id: recipe.id,
               name: recipe.title,
               description: recipe.summary,
               prep_time_minutes: recipe.preparationMinutes || 15,
               cooking_time_minutes: recipe.cookingMinutes || 30,
-              rating: recipe.spoonacularScore / 20, // Convert to 5-star scale
+              rating: recipe.spoonacularScore / 20,
               image: recipe.image,
               sourceUrl: recipe.sourceUrl,
             })),
@@ -142,7 +146,7 @@ serve(async (req) => {
       }
     }
 
-    console.log("Sending recommendations:", recommendations);
+    console.log("Final recommendations:", recommendations);
 
     return new Response(
       JSON.stringify({ recommendations }),
