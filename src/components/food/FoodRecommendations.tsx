@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Clock } from "lucide-react";
 
 export const FoodRecommendations = () => {
   const { data: nutrients } = useQuery({
@@ -15,8 +16,15 @@ export const FoodRecommendations = () => {
         .eq('date', new Date().toISOString().split('T')[0])
         .single();
       
-      if (error) throw error;
-      return data;
+      if (error && error.code !== 'PGRST116') throw error;
+      return data || {
+        total_vitamin_a: 0,
+        total_vitamin_d: 0,
+        total_vitamin_k: 0,
+        total_vitamin_b1: 0,
+        total_vitamin_b6: 0,
+        total_vitamin_b12: 0,
+      };
     }
   });
 
@@ -24,6 +32,8 @@ export const FoodRecommendations = () => {
     queryKey: ["recommendations", nutrients],
     queryFn: async () => {
       if (!nutrients) return null;
+      
+      console.log("Fetching recommendations with nutrients:", nutrients);
       
       const response = await fetch('/functions/v1/get-recommendations', {
         method: 'POST',
@@ -35,7 +45,9 @@ export const FoodRecommendations = () => {
       });
       
       if (!response.ok) throw new Error('Failed to get recommendations');
-      return response.json();
+      const data = await response.json();
+      console.log("Received recommendations:", data);
+      return data;
     },
     enabled: !!nutrients
   });
@@ -62,20 +74,58 @@ export const FoodRecommendations = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {recommendations.recommendations.map((rec: any) => (
         <Card key={rec.nutrient}>
           <CardHeader>
-            <CardTitle className="text-lg">{rec.nutrient} Rich Foods</CardTitle>
+            <CardTitle className="text-lg">
+              {rec.nutrient} Rich Foods & Recipes
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc pl-4 space-y-2">
-              {rec.foods.map((food: any) => (
-                <li key={food.name} className="text-sm">
-                  {food.name}
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium mb-2">Nutrient-Rich Ingredients:</h4>
+                <ul className="list-disc pl-4 space-y-1">
+                  {rec.foods.map((food: any) => (
+                    <li key={food.name} className="text-sm">
+                      {food.name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              {rec.recipes && rec.recipes.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-2">Recommended Recipes:</h4>
+                  <div className="space-y-3">
+                    {rec.recipes.map((recipe: any) => (
+                      <div
+                        key={recipe.id}
+                        className="border rounded-lg p-3 bg-muted/50"
+                      >
+                        <div className="space-y-1">
+                          <h5 className="font-medium">{recipe.name}</h5>
+                          {recipe.description && (
+                            <p className="text-sm text-muted-foreground">
+                              {recipe.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            <span>
+                              {recipe.prep_time_minutes + recipe.cooking_time_minutes} min
+                            </span>
+                            <span>•</span>
+                            <span>{recipe.rating}⭐</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       ))}

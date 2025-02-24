@@ -14,6 +14,7 @@ serve(async (req) => {
 
   try {
     const { nutrients } = await req.json();
+    console.log("Received nutrients:", nutrients);
 
     // Create Supabase client
     const supabaseClient = createClient(
@@ -76,14 +77,33 @@ serve(async (req) => {
     // Check each nutrient and get recommendations if needed
     for (const check of nutrientChecks) {
       if (check.current < check.recommended) {
-        // Find foods rich in this nutrient
+        console.log(`Finding recommendations for ${check.name}`);
+        
+        // First get nutrient-rich ingredients
         const { data: foods } = await supabaseClient
           .from('food_items')
-          .select('name, ' + check.column)
+          .select('id, name, ' + check.column)
           .order(check.column, { ascending: false })
           .limit(5);
 
         if (foods && foods.length > 0) {
+          // Then find recipes containing these ingredients
+          const foodIds = foods.map((food: any) => food.id);
+          const { data: recipes } = await supabaseClient
+            .from('recipes')
+            .select(`
+              id,
+              name,
+              description,
+              cooking_time_minutes,
+              prep_time_minutes,
+              rating,
+              recipe_ingredients!inner(food_item_id)
+            `)
+            .in('recipe_ingredients.food_item_id', foodIds)
+            .order('rating', { ascending: false })
+            .limit(3);
+
           recommendations.push({
             nutrient: check.name,
             current: check.current,
@@ -93,10 +113,13 @@ serve(async (req) => {
               name: food.name,
               amount: food[check.column],
             })),
+            recipes: recipes || [],
           });
         }
       }
     }
+
+    console.log("Sending recommendations:", recommendations);
 
     return new Response(
       JSON.stringify({ recommendations }),
@@ -106,6 +129,7 @@ serve(async (req) => {
       },
     );
   } catch (error) {
+    console.error("Error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
