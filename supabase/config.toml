@@ -1,5 +1,5 @@
 
 project_id = "ewqxfmkqzloirhjnrjio"
 
-[get-recommendations]
+[functions.get-recommendations]
 verify_jwt = true
