@@ -10,6 +10,7 @@ import { FoodLogForm } from "@/components/food/FoodLogForm";
 import { NutrientSummary } from "@/components/food/NutrientSummary";
 import { FoodRecommendations } from "@/components/food/FoodRecommendations";
 import { FoodLogHistory } from "@/components/food/FoodLogHistory";
+import { WeeklyMealPlan } from "@/components/meal-planning/WeeklyMealPlan";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -110,15 +111,7 @@ const Dashboard = () => {
                 <CardDescription>Plan your meals for the week ahead</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-sm text-muted-foreground">
-                  Meal planning feature coming soon! You'll be able to:
-                  <ul className="list-disc list-inside mt-2 space-y-1">
-                    <li>Plan breakfasts, lunches, and dinners</li>
-                    <li>Get nutrient-optimized recipe suggestions</li>
-                    <li>Generate shopping lists</li>
-                    <li>Track meal completion</li>
-                  </ul>
-                </div>
+                <WeeklyMealPlan />
               </CardContent>
             </Card>
           </TabsContent>
