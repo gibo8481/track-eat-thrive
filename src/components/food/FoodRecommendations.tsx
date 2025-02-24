@@ -1,16 +1,13 @@
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, ExternalLink, RefreshCw } from "lucide-react";
+import { Clock, ExternalLink } from "lucide-react";
 import { AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export const FoodRecommendations = () => {
-  const queryClient = useQueryClient();
-  
   const { data: nutrients } = useQuery({
     queryKey: ["nutrientTotals", new Date().toISOString().split('T')[0]],
     queryFn: async () => {
@@ -37,7 +34,7 @@ export const FoodRecommendations = () => {
     }
   });
 
-  const { data: recommendations, isLoading, error, refetch } = useQuery({
+  const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ["recommendations", nutrients],
     queryFn: async () => {
       if (!nutrients) return null;
@@ -67,18 +64,6 @@ export const FoodRecommendations = () => {
     enabled: !!nutrients,
     retry: 1
   });
-
-  const handleRefresh = async () => {
-    // Add timestamp to force a new query
-    const timestamp = new Date().getTime();
-    // Invalidate the current recommendations query to force a refetch
-    await queryClient.invalidateQueries({ 
-      queryKey: ["recommendations", nutrients],
-      refetchType: 'active',
-    });
-    // Manually trigger a refetch with the new timestamp
-    await refetch();
-  };
 
   if (isLoading) {
     return (
@@ -115,18 +100,6 @@ export const FoodRecommendations = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button
-          onClick={handleRefresh}
-          variant="outline"
-          className="gap-2"
-          size="sm"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh Recommendations
-        </Button>
-      </div>
-      
       {recommendations.recommendations.map((rec: any) => (
         <Card key={rec.nutrient}>
           <CardHeader>
