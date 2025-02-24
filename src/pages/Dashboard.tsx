@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -11,6 +10,7 @@ import { NutrientSummary } from "@/components/food/NutrientSummary";
 import { FoodRecommendations } from "@/components/food/FoodRecommendations";
 import { FoodLogHistory } from "@/components/food/FoodLogHistory";
 import { WeeklyMealPlan } from "@/components/meal-planning/WeeklyMealPlan";
+import { DietPreferences } from "@/components/meal-planning/DietPreferences";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -123,15 +123,7 @@ const Dashboard = () => {
                 <CardDescription>Customize your dietary preferences</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-sm text-muted-foreground">
-                  Diet customization coming soon! You'll be able to:
-                  <ul className="list-disc list-inside mt-2 space-y-1">
-                    <li>Select diet type (keto, paleo, vegan, etc.)</li>
-                    <li>Set cooking preferences</li>
-                    <li>Adjust meal complexity</li>
-                    <li>Specify dietary restrictions</li>
-                  </ul>
-                </div>
+                <DietPreferences />
               </CardContent>
             </Card>
           </TabsContent>

@@ -9,6 +9,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      diet_preferences: {
+        Row: {
+          cooking_preference: string[] | null
+          created_at: string
+          diet_type: string | null
+          id: string
+          max_cooking_time: number | null
+          max_ingredients: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cooking_preference?: string[] | null
+          created_at?: string
+          diet_type?: string | null
+          id?: string
+          max_cooking_time?: number | null
+          max_ingredients?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cooking_preference?: string[] | null
+          created_at?: string
+          diet_type?: string | null
+          id?: string
+          max_cooking_time?: number | null
+          max_ingredients?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       food_items: {
         Row: {
           calories: number
@@ -104,6 +137,66 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meal_plans: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+          week_start_date: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: []
+      }
+      planned_meals: {
+        Row: {
+          day_of_week: number
+          id: string
+          meal_plan_id: string
+          meal_type: string
+          recipe_id: string
+        }
+        Insert: {
+          day_of_week: number
+          id?: string
+          meal_plan_id: string
+          meal_type: string
+          recipe_id: string
+        }
+        Update: {
+          day_of_week?: number
+          id?: string
+          meal_plan_id?: string
+          meal_type?: string
+          recipe_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planned_meals_meal_plan_id_fkey"
+            columns: ["meal_plan_id"]
+            isOneToOne: false
+            referencedRelation: "meal_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_meals_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
             referencedColumns: ["id"]
           },
         ]
@@ -263,6 +356,80 @@ export type Database = {
           servings?: number | null
         }
         Relationships: []
+      }
+      shopping_list_items: {
+        Row: {
+          amount: number
+          food_item_id: string
+          id: string
+          purchased: boolean
+          shopping_list_id: string
+          shopping_run: number
+          unit: string
+        }
+        Insert: {
+          amount: number
+          food_item_id: string
+          id?: string
+          purchased?: boolean
+          shopping_list_id: string
+          shopping_run?: number
+          unit: string
+        }
+        Update: {
+          amount?: number
+          food_item_id?: string
+          id?: string
+          purchased?: boolean
+          shopping_list_id?: string
+          shopping_run?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopping_list_items_food_item_id_fkey"
+            columns: ["food_item_id"]
+            isOneToOne: false
+            referencedRelation: "food_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopping_list_items_shopping_list_id_fkey"
+            columns: ["shopping_list_id"]
+            isOneToOne: false
+            referencedRelation: "shopping_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopping_lists: {
+        Row: {
+          created_at: string
+          id: string
+          meal_plan_id: string
+          split_into_runs: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meal_plan_id: string
+          split_into_runs?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meal_plan_id?: string
+          split_into_runs?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopping_lists_meal_plan_id_fkey"
+            columns: ["meal_plan_id"]
+            isOneToOne: false
+            referencedRelation: "meal_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
